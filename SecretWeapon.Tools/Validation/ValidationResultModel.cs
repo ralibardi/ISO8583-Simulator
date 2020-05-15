@@ -7,11 +7,11 @@ namespace SecretWeapon.Tools.Validation
         /// <summary>
         /// 
         /// </summary>
-        public T DeEntity { get; set; }
+        public T Entity { get; set; }
         /// <summary>
         /// 
         /// </summary>
-        public ValidationResult DeValidationResult { get; set; }
+        public ValidationResult ValidationResult { get; set; }
 
 
         /// <summary>
@@ -21,8 +21,8 @@ namespace SecretWeapon.Tools.Validation
         /// <param name="validationResult"></param>
         public ValidationResultModel(T entity, ValidationResult validationResult)
         {
-            DeEntity = entity;
-            DeValidationResult = validationResult;
+            Entity = entity;
+            ValidationResult = validationResult;
         }
     }
 }

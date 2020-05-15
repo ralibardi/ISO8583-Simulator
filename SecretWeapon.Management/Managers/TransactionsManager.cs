@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json;
 using Microsoft.AspNetCore.JsonPatch;
 using SecretWeapon.Management.Models;
 using SecretWeapon.Tools.Validation;
@@ -7,17 +8,17 @@ namespace SecretWeapon.Management.Managers
 {
     public class TransactionsManager : ITransactionsManager
     {
-        public TransactionModel Get(int id)
+        public ValidationResultModel<TransactionModel> Get(int id)
         {
             throw new System.NotImplementedException();
         }
 
-        public IEnumerable<TransactionModel> GetAll()
+        public ValidationResultModel<IEnumerable<TransactionModel>> GetAll()
         {
             throw new System.NotImplementedException();
         }
 
-        public ValidationResultModel<TransactionModel> Create(TransactionModel value)
+        public ValidationResultModel<TransactionModel> Create(JsonDocument value)
         {
             throw new System.NotImplementedException();
         }
@@ -27,7 +28,12 @@ namespace SecretWeapon.Management.Managers
             throw new System.NotImplementedException();
         }
 
-        public void Delete(int id)
+        public bool Delete(int id)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public IDictionary<int, bool> BulkDelete(IEnumerable<int> ids)
         {
             throw new System.NotImplementedException();
         }

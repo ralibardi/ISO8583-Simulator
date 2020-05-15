@@ -1,8 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
-using FluentValidation.Results;
+using System.Text.Json;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using SecretWeapon.Management.Managers;
 using SecretWeapon.Management.Models;
 using Swashbuckle.Swagger.Annotations;
 
@@ -12,11 +16,13 @@ namespace SecretWeapon.Web.Controllers
     [Route("[controller]")]
     public class TransactionsController : ControllerBase
     {
+        private readonly ITransactionsManager _transactionsManager;
         private readonly ILogger<TransactionsController> _logger;
 
-        public TransactionsController(ILogger<TransactionsController> logger)
+        public TransactionsController(ILogger<TransactionsController> logger, ITransactionsManager transactionsManager)
         {
-            _logger = logger;
+            _transactionsManager = transactionsManager ?? throw new ArgumentNullException(nameof(transactionsManager));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [HttpGet]
@@ -27,9 +33,18 @@ namespace SecretWeapon.Web.Controllers
         [SwaggerResponse(HttpStatusCode.BadRequest, "Transaction corrupted")]
         public IActionResult GetTransaction([FromRoute] int transactionId)
         {
-            var result = new TransactionModel();
+            _logger.Log(LogLevel.Trace, transactionId, $"A transaction with id {transactionId} is being consulted");
+            var result = _transactionsManager.Get(transactionId);
 
-            return Ok(result);
+            if (result.Entity == null)
+            {
+                _logger.Log(LogLevel.Error, transactionId, $"A transaction with id {transactionId} couldn't be found");
+                return NotFound();
+            }
+
+            _logger.Log(LogLevel.Information, transactionId, $"A transaction with id {transactionId} was retrieved successfully");
+
+            return Ok(result.Entity);
         }
 
         [HttpGet]
@@ -38,16 +53,99 @@ namespace SecretWeapon.Web.Controllers
         [SwaggerResponse(HttpStatusCode.NotFound, "No transactions found")]
         public IActionResult GetTransaction()
         {
-            var result = new List<TransactionModel>
-            {
-                new TransactionModel(),
-                new TransactionModel(),
-                new TransactionModel(),
-                new TransactionModel(),
-                new TransactionModel()
-            };
+            _logger.Log(LogLevel.Trace, "A check on all transactions is being called");
+            var result = _transactionsManager.GetAll();
 
-            return Ok(result);
+            if (result.Entity == null)
+            {
+                _logger.Log(LogLevel.Error, "Couldn't find any transactions");
+                return NotFound();
+            }
+
+            _logger.Log(LogLevel.Information, "All transactions retrieved successfully");
+            return Ok(result.Entity);
+        }
+
+        [HttpPost]
+        [Route("Post")]
+        [SwaggerResponse(HttpStatusCode.OK, "Transaction created successfully")]
+        [SwaggerResponse(HttpStatusCode.BadRequest, "Transaction not valid")]
+        public IActionResult Create([FromBody] JsonDocument transaction)
+        {
+            _logger.Log(LogLevel.Trace, "A new transaction will be created");
+
+            var result = _transactionsManager.Create(transaction);
+
+            if (result.Entity == null)
+            {
+                _logger.Log(LogLevel.Error, "Couldn't create the transaction");
+                return NotFound();
+            }
+
+            _logger.Log(LogLevel.Information, "Transaction created successfully");
+            return Ok(result.Entity);
+        }
+
+        [HttpPatch]
+        [Route("Patch/{transactionId}")]
+        [SwaggerResponse(HttpStatusCode.OK, "Transaction modified successfully")]
+        [SwaggerResponse(HttpStatusCode.BadRequest, "Couldn't modify transaction")]
+        public IActionResult ModifyTransaction([FromRoute] int transactionId, [FromBody] JsonPatchDocument<TransactionModel> transaction)
+        {
+            _logger.Log(LogLevel.Trace, "A transaction will be modified");
+
+            var result = _transactionsManager.ModifyTransaction(transactionId, transaction);
+
+            if (result.Entity == null)
+            {
+                _logger.Log(LogLevel.Error, "Couldn't modify the transaction");
+                return NotFound();
+            }
+
+            _logger.Log(LogLevel.Information, "Transaction created successfully");
+            return Ok(result.Entity);
+        }
+
+        [HttpDelete]
+        [Route("Delete/{transactionId}")]
+        [SwaggerResponse(HttpStatusCode.OK, "Transaction deleted successfully")]
+        [SwaggerResponse(HttpStatusCode.BadRequest, "Couldn't delete transaction")]
+        public IActionResult Delete([FromRoute] int transactionId)
+        {
+            _logger.Log(LogLevel.Trace, transactionId, $"A transaction with id {transactionId} will be deleted");
+
+            var result = _transactionsManager.Delete(transactionId);
+
+            if (!result)
+            {
+                _logger.Log(LogLevel.Error, transactionId, $"A transaction with id {transactionId} couldn't be deleted");
+
+                return NotFound();
+            }
+
+            _logger.Log(LogLevel.Information, transactionId, $"A transaction with id {transactionId} was deleted successfully");
+            return Ok();
+        }
+
+        [HttpDelete]
+        [Route("DeleteBulk")]
+        [SwaggerResponse(HttpStatusCode.OK, "Transactions deleted successfully")]
+        [SwaggerResponse(HttpStatusCode.BadRequest, "Couldn't delete one or more transactions")]
+        public IActionResult BulkDelete([FromBody] IEnumerable<int> transactionsIds)
+        {
+            _logger.Log(LogLevel.Trace, "A bulk delete of all transactions will be initiated");
+
+            var result = _transactionsManager.BulkDelete(transactionsIds);
+            var failedDelete = result.Where(r => !r.Value).ToList();
+
+            if (!failedDelete.Any())
+            {
+                _logger.Log(LogLevel.Information, "All transactions retrieved successfully");
+                return Ok(result);
+            }
+
+            _logger.Log(LogLevel.Error, "Couldn't delete some transactions");
+            return BadRequest(failedDelete.Select(r => r.Key));
         }
     }
 }
