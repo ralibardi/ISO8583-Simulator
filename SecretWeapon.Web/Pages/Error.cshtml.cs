@@ -15,13 +15,13 @@ namespace SecretWeapon.Web.Pages
             _logger = logger;
         }
 
-        public string DeRequestId { get; set; }
+        public string RequestId { get; set; }
 
-        public bool DeShowRequestId => !string.IsNullOrEmpty(DeRequestId);
+        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
         public void OnGet()
         {
-            DeRequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
+            RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
         }
     }
 }
