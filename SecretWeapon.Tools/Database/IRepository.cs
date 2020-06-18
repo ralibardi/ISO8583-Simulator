@@ -1,20 +1,15 @@
-﻿using System.Collections.Generic;
-using MongoDB.Driver;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SecretWeapon.Tools.Database
 {
-    public interface IRepository<T>
+    public interface IRepository<TEntity> : IDisposable where TEntity : class
     {
-        void CreateOne(T value);
-
-        void CreateMany(IEnumerable<T> value);
-
-        UpdateResult UpdateOne(T value);
-
-        IEnumerable<T> UpdateMany(IEnumerable<T> value);
-
-        DeleteResult DeleteOne(T value);
-
-        void DeleteMany(IEnumerable<T> value);
+        void Add(TEntity obj);
+        Task<TEntity> GetById(Guid id);
+        Task<IEnumerable<TEntity>> GetAll();
+        void Update(TEntity obj);
+        void Remove(Guid id);
     }
 }

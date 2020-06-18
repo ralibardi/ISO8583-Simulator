@@ -1,18 +1,26 @@
 ﻿using System.Collections.Generic;
-using System.Text.Json;
 using Microsoft.AspNetCore.JsonPatch;
+using MongoDB.Driver;
 using SecretWeapon.Management.Models;
-using SecretWeapon.Tools.Validation;
 
 namespace SecretWeapon.Management.Managers
 {
     public interface ITransactionsManager
     {
-        ValidationResultModel<TransactionModel> Get(int id);
-        ValidationResultModel<IEnumerable<TransactionModel>> GetAll();
-        ValidationResultModel<TransactionModel> Create(JsonDocument value);
-        ValidationResultModel<TransactionModel> ModifyTransaction(int id, JsonPatchDocument<TransactionModel> value);
-        bool Delete(int id);
-        IDictionary<int, bool> BulkDelete(IEnumerable<int> ids);
+        TransactionModel GetOne(int id);
+
+        IEnumerable<TransactionModel> GetAll();
+
+        TransactionModel CreateOne(TransactionModel value);
+
+        IEnumerable<TransactionModel> CreateMany(IEnumerable<TransactionModel> value);
+
+        UpdateResult UpdateOne(int transactionId, JsonPatchDocument<TransactionModel> transaction);
+
+        UpdateResult UpdateMany(IEnumerable<int> ids, JsonPatchDocument<IEnumerable<TransactionModel>> patch);
+
+        DeleteResult RemoveOne(int id);
+
+        DeleteResult RemoveMany(IEnumerable<int> ids);
     }
 }

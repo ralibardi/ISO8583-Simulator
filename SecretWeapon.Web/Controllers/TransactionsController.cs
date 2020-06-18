@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.JsonPatch;
@@ -34,9 +33,9 @@ namespace SecretWeapon.Web.Controllers
         public IActionResult GetTransaction([FromRoute] int transactionId)
         {
             _logger.Log(LogLevel.Trace, transactionId, $"A transaction with id {transactionId} is being consulted");
-            var result = _transactionsManager.Get(transactionId);
+            var result = _transactionsManager.GetOne(transactionId);
 
-            if (result.Entity == null)
+            if (result == null)
             {
                 _logger.Log(LogLevel.Error, transactionId, $"A transaction with id {transactionId} couldn't be found");
                 return NotFound();
@@ -44,7 +43,7 @@ namespace SecretWeapon.Web.Controllers
 
             _logger.Log(LogLevel.Information, transactionId, $"A transaction with id {transactionId} was retrieved successfully");
 
-            return Ok(result.Entity);
+            return Ok(result);
         }
 
         [HttpGet]
@@ -56,34 +55,36 @@ namespace SecretWeapon.Web.Controllers
             _logger.Log(LogLevel.Trace, "A check on all transactions is being called");
             var result = _transactionsManager.GetAll();
 
-            if (result.Entity == null)
+            if (result == null)
             {
                 _logger.Log(LogLevel.Error, "Couldn't find any transactions");
                 return NotFound();
             }
 
             _logger.Log(LogLevel.Information, "All transactions retrieved successfully");
-            return Ok(result.Entity);
+            return Ok(result);
         }
 
         [HttpPost]
         [Route("Post")]
         [SwaggerResponse(HttpStatusCode.OK, "Transaction created successfully")]
         [SwaggerResponse(HttpStatusCode.BadRequest, "Transaction not valid")]
-        public IActionResult Create([FromBody] JsonDocument transaction)
+        public IActionResult Create([FromBody] JsonDocument document)
         {
             _logger.Log(LogLevel.Trace, "A new transaction will be created");
 
-            var result = _transactionsManager.Create(transaction);
+            var transaction = JsonSerializer.Deserialize<TransactionModel>(document.ToString());
 
-            if (result.Entity == null)
+            var result = _transactionsManager.CreateOne(transaction);
+
+            if (result == null)
             {
                 _logger.Log(LogLevel.Error, "Couldn't create the transaction");
                 return NotFound();
             }
 
             _logger.Log(LogLevel.Information, "Transaction created successfully");
-            return Ok(result.Entity);
+            return Ok(result);
         }
 
         [HttpPatch]
@@ -94,16 +95,16 @@ namespace SecretWeapon.Web.Controllers
         {
             _logger.Log(LogLevel.Trace, "A transaction will be modified");
 
-            var result = _transactionsManager.ModifyTransaction(transactionId, transaction);
+            var result = _transactionsManager.UpdateOne(transactionId, transaction);
 
-            if (result.Entity == null)
+            if (result.IsAcknowledged)
             {
                 _logger.Log(LogLevel.Error, "Couldn't modify the transaction");
                 return NotFound();
             }
 
-            _logger.Log(LogLevel.Information, "Transaction created successfully");
-            return Ok(result.Entity);
+            _logger.Log(LogLevel.Information, "Transaction modified successfully");
+            return Ok(result);
         }
 
         [HttpDelete]
@@ -114,9 +115,9 @@ namespace SecretWeapon.Web.Controllers
         {
             _logger.Log(LogLevel.Trace, transactionId, $"A transaction with id {transactionId} will be deleted");
 
-            var result = _transactionsManager.Delete(transactionId);
+            var result = _transactionsManager.RemoveOne(transactionId);
 
-            if (!result)
+            if (!result.IsAcknowledged)
             {
                 _logger.Log(LogLevel.Error, transactionId, $"A transaction with id {transactionId} couldn't be deleted");
 
@@ -135,17 +136,16 @@ namespace SecretWeapon.Web.Controllers
         {
             _logger.Log(LogLevel.Trace, "A bulk delete of all transactions will be initiated");
 
-            var result = _transactionsManager.BulkDelete(transactionsIds);
-            var failedDelete = result.Where(r => !r.Value).ToList();
+            var result = _transactionsManager.RemoveMany(transactionsIds);
 
-            if (!failedDelete.Any())
+            if (result.IsAcknowledged)
             {
                 _logger.Log(LogLevel.Information, "All transactions retrieved successfully");
                 return Ok(result);
             }
 
-            _logger.Log(LogLevel.Error, "Couldn't delete some transactions");
-            return BadRequest(failedDelete.Select(r => r.Key));
+            _logger.Log(LogLevel.Error, $"Couldn't delete {result.DeletedCount} transactions");
+            return BadRequest(result);
         }
     }
 }

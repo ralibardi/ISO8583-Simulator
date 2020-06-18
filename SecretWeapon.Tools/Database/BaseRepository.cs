@@ -1,67 +1,62 @@
-﻿using System.Collections.Generic;
-using MongoDB.Bson;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using MongoDB.Driver;
-using InsertManyOptions = MongoDB.Driver.InsertManyOptions;
+using SecretWeapon.Tools.Context;
+using ServiceStack;
 
 namespace SecretWeapon.Tools.Database
 {
-    public class BaseRepository<T> : IRepository<T>
+    public abstract class BaseRepository<TEntity> : IRepository<TEntity> where TEntity : class
     {
-        private readonly string _collectionName;
+        protected readonly IMongoContext Context;
+        protected IMongoCollection<TEntity> DbSet;
 
-        public BaseRepository(string collectionName)
+        protected BaseRepository(IMongoContext context)
         {
-            _collectionName = collectionName;
+            Context = context;
         }
 
-        private IMongoCollection<T> GetMongoCollection()
+        public virtual void Add(TEntity obj)
         {
-            DatabaseSettings.ConnectToDatabase();
-
-            return DatabaseSettings.Database.GetCollection<T>(_collectionName);
+            ConfigDbSet();
+            Context.AddCommand(() => DbSet.InsertOneAsync(obj));
         }
 
-        public void CreateOne(T value)
+        private void ConfigDbSet()
         {
-            var collection = GetMongoCollection();
-
-            collection.InsertOne(value);
+            DbSet = Context.GetCollection<TEntity>(typeof(TEntity).Name);
         }
 
-        public void CreateMany(IEnumerable<T> value)
+        public virtual async Task<TEntity> GetById(Guid id)
         {
-            var collection = GetMongoCollection();
-
-            collection.InsertMany(value, new InsertManyOptions());
+            ConfigDbSet();
+            var data = await DbSet.FindAsync(Builders<TEntity>.Filter.Eq("_id", id));
+            return data.SingleOrDefault();
         }
 
-        public UpdateResult UpdateOne(T value)
+        public virtual async Task<IEnumerable<TEntity>> GetAll()
         {
-            var collection = GetMongoCollection();
-
-            FilterDefinition<T> filter = new BsonDocumentFilterDefinition<T>(BsonDocument.Create(value));
-            UpdateDefinition<T> update = new BsonDocumentUpdateDefinition<T>(BsonDocument.Create(value));
-
-            return collection.UpdateOne(filter, update);
+            ConfigDbSet();
+            var all = await DbSet.FindAsync(Builders<TEntity>.Filter.Empty);
+            return all.ToList();
         }
 
-        public IEnumerable<T> UpdateMany(IEnumerable<T> value)
+        public virtual void Update(TEntity obj)
         {
-            throw new System.NotImplementedException();
+            ConfigDbSet();
+            Context.AddCommand(() => DbSet.ReplaceOneAsync(Builders<TEntity>.Filter.Eq("_id", obj.GetId()), obj));
         }
 
-        public DeleteResult DeleteOne(T value)
+        public virtual void Remove(Guid id)
         {
-            var collection = GetMongoCollection();
-
-            FilterDefinition<T> filter = new BsonDocumentFilterDefinition<T>(BsonDocument.Create(value));
-
-            return collection.DeleteOne(filter);
+            ConfigDbSet();
+            Context.AddCommand(() => DbSet.DeleteOneAsync(Builders<TEntity>.Filter.Eq("_id", id)));
         }
 
-        public void DeleteMany(IEnumerable<T> value)
+        public void Dispose()
         {
-            throw new System.NotImplementedException();
+            Context?.Dispose();
         }
     }
 }

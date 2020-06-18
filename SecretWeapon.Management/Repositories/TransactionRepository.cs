@@ -1,10 +1,17 @@
-﻿using SecretWeapon.Tools.Database;
+﻿using SecretWeapon.DataModel;
+using SecretWeapon.Tools.Context;
+using SecretWeapon.Tools.Database;
 
 namespace SecretWeapon.Management.Repositories
 {
-    public class TransactionRepository : BaseRepository<DataModel.Transaction>
+    public interface ITransactionRepository : IRepository<Transaction>
     {
-        public TransactionRepository() : base(Resources.TransactionCollectionName)
+    }
+
+    // Implementation
+    public class TransactionRepository : BaseRepository<Transaction>, ITransactionRepository
+    {
+        public TransactionRepository(IMongoContext context) : base(context)
         {
         }
     }
